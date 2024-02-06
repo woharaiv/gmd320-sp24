@@ -1,0 +1,34 @@
+{
+    "name": "DebugControls",
+    "maps": [
+        {
+            "name": "Debug",
+            "id": "af6b8f0d-dfda-4bce-9763-5d4c3a6cdc1e",
+            "actions": [
+                {
+                    "name": "ToggleDebug",
+                    "type": "Button",
+                    "id": "68fa8d67-5faa-4ca8-be3b-fd073b42e4a2",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "6a766205-7871-4f9d-8f4a-52a9698d0f19",
+                    "path": "<Keyboard>/backquote",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "ToggleDebug",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

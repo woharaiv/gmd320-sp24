@@ -17,9 +17,9 @@ public class InputManager : MonoBehaviour
         playerMovement = playerControls.PlayerMovement;
 
         playerMovement.Movement.performed += ctx => movementInput = ctx.ReadValue<Vector2>();
-        playerMovement.Jump.performed += ctx => thirdPersonMovement.OnJumpPressed();
-        playerMovement.Crouch.performed += ctx => thirdPersonMovement.OnCrouchStart();
-        playerMovement.Crouch.canceled += ctx => thirdPersonMovement.OnCrouchEnd();
+        playerMovement.Attack.performed += ctx => thirdPersonMovement.OnAttackPressed();
+        playerMovement.Block.performed += ctx => thirdPersonMovement.OnBlockStart();
+        playerMovement.Block.canceled += ctx => thirdPersonMovement.OnBlockEnd();
     }
 
     private void Update()

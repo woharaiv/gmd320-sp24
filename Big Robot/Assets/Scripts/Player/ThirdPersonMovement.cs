@@ -13,24 +13,23 @@ public class ThirdPersonMovement : MonoBehaviour
     [SerializeField] float airSpeed = 0.7f;
     [SerializeField] float rotTime = 7f;
 
-    [SerializeField] float jumpStrength = 5f;
-    [SerializeField] float jumpCooldown = 1f;
+    Transform robotTransform;
+    Vector3 vecToRobot;
 
-    [SerializeField] float checkHeight = 0.25f;
-    [SerializeField] float checkRadius = 0.5f;
     [SerializeField] LayerMask groundMask;
 
-    [SerializeField] float crouchSquash = 0.5f;
-    [SerializeField] float crouchTime = 0.5f;
-    [SerializeField] float crouchSpeedMult = 0.6f;
-    [SerializeField] float crouchJumpStrength = 1.5f;
+    [SerializeField] float attackCooldown = 0.3125f;
+    float attackTimer = 0;
+    
+    [SerializeField] float blockingSpeedMod = 0f;
 
-    [SerializeField] AudioClip jumpSound;
-    [SerializeField] AudioClip crouchSound;
-    [SerializeField] AudioClip bigJumpSound;
+    [SerializeField] float timeBeforeParry = 0.25f;
+    [SerializeField] float parryWindow = 0.25f;
+    
+    [SerializeField] AudioClip[] attackSounds;
+    [SerializeField] AudioClip blockSound;
+    [SerializeField] AudioClip parryReadySound;
     [SerializeField] AudioClip hitSound;
-
-    [SerializeField] GameObject crouchJumpPoof;
 
     public bool canInput = true;
 
@@ -48,60 +47,49 @@ public class ThirdPersonMovement : MonoBehaviour
 
     Vector3 respawnPoint;
 
-    bool crouching = false;
-    bool canCrouchJump = false;
+    bool blocking = false;
+    bool canParry = false;
     Tween crouchTween = null;
     private void Awake()
     {
         respawnPoint = transform.position;
         rb = GetComponent<Rigidbody>();
         body = transform.Find("PlayerBody");
+        rb.drag = DRAG;
+        robotTransform = GameObject.FindGameObjectWithTag("Enemy").transform;
     }
     private void FixedUpdate()
     {
-        //Check ground using sphere slightly protuding from the bottom of the body
-        //TODO: current calculation for sphere check causes sphere check to sink deep into ground. may want to fix this if it ends up causing issues.
-        isGrounded = Physics.CheckSphere(transform.position - (Vector3.up * (body.GetComponent<CapsuleCollider>().height * checkHeight)), checkRadius, groundMask, RotaryHeart.Lib.PhysicsExtension.PreviewCondition.Editor);
-
-        //Apply drag only if grounded
-        if (isGrounded)
-            rb.drag = 0;
-        else rb.drag = DRAG;
-
+        if(attackTimer > 0)
+            attackTimer -= Time.deltaTime;
         if (canInput)
             HandleMovement();
+
     }
 
     void HandleMovement()
     {
-        if (initJump)
-            Jump();
-
         //Reset movement vector and reposition forward/back movement to be relative to camera rather than world space
         moveVec = new Vector3(activeCamera.transform.forward.x * movementInput.y, 0, activeCamera.transform.forward.z * movementInput.y);
-        //Reposition side to size movement relative to camera
+        //Reposition horizontal movement relative to camera
         moveVec += activeCamera.transform.right * movementInput.x;
         //Normalize movement vector to the movement speed
         moveVec = moveVec.normalized * moveSpeed;
-        //If airborne, apply air speed penalty and uncrouch.
-        if (!isGrounded)
-        {
-            moveVec *= airSpeed;
-            OnCrouchEnd();
-        }
-        //If crouching, apply crouch move speed penalty
-        if (crouching)
-            moveVec *= crouchSpeedMult;
+        //If blocking, apply block move speed penalty (currently means no movement)
+        if (blocking)
+            moveVec *= blockingSpeedMod;
         //I can't really explain why I did it like this, but I like how it makes the movement feel.
         rb.AddForce(moveVec - new Vector3(rb.velocity.x, 0, rb.velocity.z), ForceMode.Force);
 
-        //TODO: Change how capping speed works to allow effects that make the character move faster than running speed
         CapSpeed();
 
-        //Rotate body separately from movement to create smoother turning animation
+        vecToRobot = robotTransform.position - transform.position;
+        vecToRobot.y = 0;
+
+        //Try to face robot
         if (moveVec.magnitude > 0)
         {
-            body.rotation = Quaternion.Slerp(body.rotation, Quaternion.LookRotation(new Vector3(-moveVec.z, 0, moveVec.x)), rotTime * Time.deltaTime);
+            body.rotation = Quaternion.Slerp(body.rotation, Quaternion.LookRotation(vecToRobot.normalized), rotTime * Time.deltaTime);
         }
     }
 
@@ -111,69 +99,53 @@ public class ThirdPersonMovement : MonoBehaviour
             movementInput = input;
     }
 
-    public void OnJumpPressed()
+    public void OnAttackPressed()
     {
-        if (isGrounded && canJump && canInput)
+        if (attackTimer <= 0 && !blocking && canInput)
         {
-            initJump = true;
+            Debug.Log("Attack");
+            AudioSource.PlayClipAtPoint(attackSounds[Random.Range(0, attackSounds.Length)], transform.position);
+            attackTimer = attackCooldown;
         }
     }
 
-    public void ResetJump()
+    public void OnBlockStart()
     {
-        canJump = true;
-    }
-
-    public void OnCrouchStart()
-    {
-        if(isGrounded && canInput)
+        if(canInput)
         {
-            crouching = true;
-            crouchTween = transform.DOScaleY(crouchSquash, crouchTime).OnComplete(OnCrouchReady);
-            AudioSource.PlayClipAtPoint(crouchSound, transform.position, 0.25f);
+            blocking = true;
+            Debug.Log("Block start");
+            //TODO: Play blocking animation
+            Invoke(nameof(OnParryReady), timeBeforeParry);
+            AudioSource.PlayClipAtPoint(blockSound, transform.position, 0.25f);
         }
     }
 
-    private void OnCrouchReady()
+    private void OnParryReady()
     {
-        canCrouchJump = true;
+        canParry = true;
+        //TODO: Play some sort of flashing animation to indicate the parry window
+        Debug.Log("Parry");
+        AudioSource.PlayClipAtPoint(parryReadySound, transform.position, 1);
+        Invoke(nameof(OnBlockEnd), parryWindow);
     }
 
-    public void OnCrouchEnd(bool skipAnim = false)
+    public void OnBlockEnd(bool skipAnim = false)
     {
-        //This extra layer allows some game events to cancel crouching on their own when they know they can't double-call OnCrouchCancel
-        if (crouching)
-            OnCrouchCancel(skipAnim);
+        //This extra layer allows some game events to reset all the blocking-related variables without caring whether or not the player is actually blocking (Such as when starting a custcene)
+        if (blocking)
+            OnBlockCancel();
     }
 
-    private void OnCrouchCancel(bool skipAnim = false)
+    private void OnBlockCancel(bool skipAnim = false)
     {
-        crouching = false;
-        canCrouchJump = false;
-        if (crouchTween != null)
-            crouchTween.Kill();
-        crouchTween = transform.DOScaleY(1f, (skipAnim ? 0 : (crouchTime / 2)));
-    }
-
-    public void Jump()
-    {
-        initJump = false;
-        canJump = false;
-        //Stop any gravity or other downward forces that could mess with the jump
-        rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-        if (canCrouchJump)
+        Debug.Log("Block end");
+        canParry = false;
+        if(!skipAnim)
         {
-            rb.AddForce(transform.up * jumpStrength * crouchJumpStrength, ForceMode.Impulse);
-            AudioSource.PlayClipAtPoint(bigJumpSound, transform.position, 0.25f);
-            GameObject.Instantiate(crouchJumpPoof, transform.position, transform.rotation);
+            //TODO: Play block end animation
+            //TODO: Set blocking to false only after animation has completed
         }
-        else
-        {
-            rb.AddForce(transform.up * jumpStrength, ForceMode.Impulse);
-            AudioSource.PlayClipAtPoint(jumpSound, transform.position);
-        }
-        OnCrouchEnd();
-        Invoke(nameof(ResetJump), jumpCooldown);
     }
 
     private void CapSpeed()
@@ -188,7 +160,7 @@ public class ThirdPersonMovement : MonoBehaviour
 
     public void Respawn(int damage = 0)
     {
-        OnCrouchEnd(true);
+        OnBlockEnd(true);
         GetComponent<PlayerHealth>().DealDamage(damage);
         transform.position = respawnPoint;
     }
@@ -221,7 +193,7 @@ public class ThirdPersonMovement : MonoBehaviour
     {
         canInput = false;
         rb.velocity = Vector3.zero;
-        OnCrouchCancel(true);
+        OnBlockCancel(true);
         body.rotation = Quaternion.LookRotation(new Vector3(activeCamera.transform.position.z - transform.position.z, 0, activeCamera.transform.position.x - transform.position.x));
     }
     public void CutsceneEndResumePlayer() 

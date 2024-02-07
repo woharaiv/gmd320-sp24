@@ -81,22 +81,19 @@ MonoBehaviour:
   moveSpeed: 40
   airSpeed: 0.45
   rotTime: 3
-  jumpStrength: 20
-  jumpCooldown: 0.25
-  checkHeight: 0.27
-  checkRadius: 0.49
   groundMask:
     serializedVersion: 2
     m_Bits: 0
-  crouchSquash: 0.5
-  crouchTime: 0.4
-  crouchSpeedMult: 0.8
-  crouchJumpStrength: 1.5
-  jumpSound: {fileID: 8300000, guid: 03c09333a28524b49ae42da36c47441d, type: 3}
-  crouchSound: {fileID: 8300000, guid: 308f9c97339376444b793d018a1013f4, type: 3}
-  bigJumpSound: {fileID: 8300000, guid: 311acf00efdd14f4daf98e9b56466732, type: 3}
+  attackCooldown: 0.3125
+  blockingSpeedMod: 0
+  timeBeforeParry: 0.25
+  parryWindow: 0.25
+  attackSounds:
+  - {fileID: 8300000, guid: ae6fa00a695f51043b5716e198a42b28, type: 3}
+  - {fileID: 8300000, guid: 872a2e78069750a4598310304bac1541, type: 3}
+  blockSound: {fileID: 0}
+  parryReadySound: {fileID: 0}
   hitSound: {fileID: 8300000, guid: abda6e5d82ab17c42a38f0f2fa0c5818, type: 3}
-  crouchJumpPoof: {fileID: 1962993197389211391, guid: 0b23c2ced3f309247a334cb374e434e8, type: 3}
   canInput: 1
 --- !u!114 &4080007182588416825
 MonoBehaviour:
@@ -197,13 +194,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 816933883408729002}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0.70710677, w: 0.7071068}
-  m_LocalPosition: {x: 0.4734, y: 0.401, z: -0.013}
+  m_LocalRotation: {x: 0.5, y: 0.5, z: 0.5, w: 0.5}
+  m_LocalPosition: {x: -0.013, y: 0.401, z: 0.4734}
   m_LocalScale: {x: 0.45000002, y: 0.053528525, z: 0.45000002}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1863448226309780683}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -90}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 90}
 --- !u!33 &8432263082247808001
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -281,14 +278,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1873439167893789761}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.70710576, z: -0, w: 0.70710784}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7888270117606428676}
   m_Father: {fileID: 1921190106374028226}
-  m_LocalEulerAnglesHint: {x: 0, y: -90, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &1533810295055550570
 MeshFilter:
   m_ObjectHideFlags: 0

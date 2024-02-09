@@ -6,7 +6,7 @@ public class CollisionManager : MonoBehaviour
 {
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Kill"))
-            gameObject.GetComponent<ThirdPersonMovement>().Respawn(1);
+        if (other.CompareTag("OutOfBounds"))
+            gameObject.GetComponent<ThirdPersonMovement>().Respawn(0);
     }
 }

@@ -10,8 +10,7 @@ public class ThirdPersonMovement : MonoBehaviour
     [SerializeField] public Camera activeCamera;
     
     [SerializeField] float moveSpeed;
-    [SerializeField] float airSpeed = 0.7f;
-    [SerializeField] float rotTime = 7f;
+    [SerializeField] float rotSpeed = 7f;
 
     Transform robotTransform;
     Vector3 vecToRobot;
@@ -20,11 +19,12 @@ public class ThirdPersonMovement : MonoBehaviour
 
     [SerializeField] float attackCooldown = 0.3125f;
     float attackTimer = 0;
+    bool attackDir = false;
     
     [SerializeField] float blockingSpeedMod = 0f;
-
     [SerializeField] float timeBeforeParry = 0.25f;
     [SerializeField] float parryWindow = 0.25f;
+    bool bufferingBlockEnd = false;
     
     [SerializeField] AudioClip[] attackSounds;
     [SerializeField] AudioClip blockSound;
@@ -36,9 +36,7 @@ public class ThirdPersonMovement : MonoBehaviour
     public const float DRAG = 1f;
 
     bool isGrounded; 
-    bool initJump = false;
-    bool canJump = true;
-
+    
     Vector3 moveVec;
     Vector2 movementInput;
     
@@ -48,8 +46,11 @@ public class ThirdPersonMovement : MonoBehaviour
     Vector3 respawnPoint;
 
     bool blocking = false;
+    //Is the window to start a parry ready?
     bool canParry = false;
-    Tween crouchTween = null;
+    //Should the code attempt to run the parry function?
+    bool doParry = false;
+
     private void Awake()
     {
         respawnPoint = transform.position;
@@ -87,10 +88,7 @@ public class ThirdPersonMovement : MonoBehaviour
         vecToRobot.y = 0;
 
         //Try to face robot
-        if (moveVec.magnitude > 0)
-        {
-            body.rotation = Quaternion.Slerp(body.rotation, Quaternion.LookRotation(vecToRobot.normalized), rotTime * Time.deltaTime);
-        }
+        body.rotation = Quaternion.Slerp(body.rotation, Quaternion.LookRotation(vecToRobot.normalized), rotSpeed * Time.deltaTime);
     }
 
     public void RecieveInput(Vector2 input)
@@ -105,35 +103,58 @@ public class ThirdPersonMovement : MonoBehaviour
         {
             Debug.Log("Attack");
             AudioSource.PlayClipAtPoint(attackSounds[Random.Range(0, attackSounds.Length)], transform.position);
+            attackDir = !attackDir;
+            switch(attackDir)
+            {
+                case false:
+                    GetComponent<Animator>().Play("SwordSwingL");
+                    break;
+                default:
+                    GetComponent<Animator>().Play("SwordSwingR");
+                    break;
+            }
             attackTimer = attackCooldown;
         }
     }
 
     public void OnBlockStart()
     {
-        if(canInput)
+        if(canInput && attackTimer <= 0)
         {
             blocking = true;
+            doParry = true;
             Debug.Log("Block start");
-            //TODO: Play blocking animation
+            GetComponent<Animator>().Play("BlockStart");
             Invoke(nameof(OnParryReady), timeBeforeParry);
-            AudioSource.PlayClipAtPoint(blockSound, transform.position, 0.25f);
+            //AudioSource.PlayClipAtPoint(blockSound, transform.position, 0.25f);
         }
     }
 
     private void OnParryReady()
     {
+        //Don't do this if doParry is false (probably means the block was canceled before the parry window)
+        if (!doParry)
+            return;
         canParry = true;
-        //TODO: Play some sort of flashing animation to indicate the parry window
         Debug.Log("Parry");
-        AudioSource.PlayClipAtPoint(parryReadySound, transform.position, 1);
-        Invoke(nameof(OnBlockEnd), parryWindow);
+        //AudioSource.PlayClipAtPoint(parryReadySound, transform.position, 1);
+        Invoke(nameof(OnParryFinished), parryWindow);
     }
 
-    public void OnBlockEnd(bool skipAnim = false)
+    private void OnParryFinished()
     {
-        //This extra layer allows some game events to reset all the blocking-related variables without caring whether or not the player is actually blocking (Such as when starting a custcene)
-        if (blocking)
+        canParry = false;
+        if(bufferingBlockEnd)
+            OnBlockCancel();
+    }
+
+    public void OnBlockEnd()
+    {
+        Debug.Log(GetComponent<Animator>().GetCurrentAnimatorClipInfo(0)[0].ToString());
+        //If still playing out the blocking animation, buffer the block end and don't play it until the block has finished.
+        if (GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).normalizedTime < 1)
+            bufferingBlockEnd = true;
+        else //If the character is sitting at the end of the block animation, just end the block now.
             OnBlockCancel();
     }
 
@@ -141,11 +162,11 @@ public class ThirdPersonMovement : MonoBehaviour
     {
         Debug.Log("Block end");
         canParry = false;
+        doParry = false;
+        bufferingBlockEnd = false;
         if(!skipAnim)
-        {
-            //TODO: Play block end animation
-            //TODO: Set blocking to false only after animation has completed
-        }
+            GetComponent<Animator>().Play("BlockEnd");
+        blocking = false;
     }
 
     private void CapSpeed()
@@ -160,7 +181,7 @@ public class ThirdPersonMovement : MonoBehaviour
 
     public void Respawn(int damage = 0)
     {
-        OnBlockEnd(true);
+        OnBlockEnd();
         GetComponent<PlayerHealth>().DealDamage(damage);
         transform.position = respawnPoint;
     }

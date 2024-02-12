@@ -119,7 +119,7 @@ public class ThirdPersonMovement : MonoBehaviour
 
     public void OnBlockStart()
     {
-        if(canInput && attackTimer <= 0)
+        if(canInput && !blocking && attackTimer <= 0)
         {
             blocking = true;
             doParry = true;

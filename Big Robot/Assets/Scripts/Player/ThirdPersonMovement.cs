@@ -47,7 +47,7 @@ public class ThirdPersonMovement : MonoBehaviour
 
     bool blocking = false;
     //Is the window to start a parry ready?
-    bool canParry = false;
+    public bool canParry = false;
     //Should the code attempt to run the parry function?
     bool doParry = false;
 
@@ -77,7 +77,7 @@ public class ThirdPersonMovement : MonoBehaviour
         //Normalize movement vector to the movement speed
         moveVec = moveVec.normalized * moveSpeed;
         //If blocking, apply block move speed penalty (currently means no movement)
-        if (blocking)
+        if (blocking || GettingCrushed())
             moveVec *= blockingSpeedMod;
         //I can't really explain why I did it like this, but I like how it makes the movement feel.
         rb.AddForce(moveVec - new Vector3(rb.velocity.x, 0, rb.velocity.z), ForceMode.Force);
@@ -99,7 +99,7 @@ public class ThirdPersonMovement : MonoBehaviour
 
     public void OnAttackPressed()
     {
-        if (attackTimer <= 0 && !blocking && canInput)
+        if (attackTimer <= 0 && !blocking && canInput && !GettingCrushed())
         {
             Debug.Log("Attack");
             AudioSource.PlayClipAtPoint(attackSounds[Random.Range(0, attackSounds.Length)], transform.position);
@@ -115,11 +115,15 @@ public class ThirdPersonMovement : MonoBehaviour
             }
             attackTimer = attackCooldown;
         }
+        else if (GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).IsName("BlockClash"))
+        {
+            robotTransform.gameObject.GetComponent<RobotBehavior>().AttackKnockedBack();
+        }
     }
 
     public void OnBlockStart()
     {
-        if(canInput && !blocking && attackTimer <= 0)
+        if(canInput && !blocking && attackTimer <= 0 && !GettingCrushed())
         {
             blocking = true;
             doParry = true;
@@ -141,16 +145,21 @@ public class ThirdPersonMovement : MonoBehaviour
         Invoke(nameof(OnParryFinished), parryWindow);
     }
 
+    public void OnParrySuccess()
+    {
+        GetComponent<Animator>().Play("BlockDeflect");
+        OnBlockCancel(true);
+    }
+
     private void OnParryFinished()
     {
         canParry = false;
-        if(bufferingBlockEnd)
+        if(bufferingBlockEnd && !GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).IsName("BlockClash"))
             OnBlockCancel();
     }
 
     public void OnBlockEnd()
     {
-        Debug.Log(GetComponent<Animator>().GetCurrentAnimatorClipInfo(0)[0].ToString());
         //If still playing out the blocking animation, buffer the block end and don't play it until the block has finished.
         if (GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).normalizedTime < 1)
             bufferingBlockEnd = true;
@@ -158,7 +167,7 @@ public class ThirdPersonMovement : MonoBehaviour
             OnBlockCancel();
     }
 
-    private void OnBlockCancel(bool skipAnim = false)
+    public void OnBlockCancel(bool skipAnim = false)
     {
         Debug.Log("Block end");
         canParry = false;
@@ -167,6 +176,16 @@ public class ThirdPersonMovement : MonoBehaviour
         if(!skipAnim)
             GetComponent<Animator>().Play("BlockEnd");
         blocking = false;
+    }
+
+    public void BeginClash()
+    {
+        if (!doParry)
+        {
+            Debug.LogWarning("Not parrying right now");
+            return;
+        }
+        GetComponent<Animator>().Play("BlockClash");
     }
 
     private void CapSpeed()
@@ -200,14 +219,21 @@ public class ThirdPersonMovement : MonoBehaviour
         {
             knockbackVec = transform.position - source.transform.position;
             knockbackVec.y *= 0;
+            knockbackVec.Normalize();
+            knockbackVec += Vector3.up / 4;
+            knockbackVec *= strength;
         }
-           
-        knockbackVec.Normalize();
-        knockbackVec += Vector3.up / 4;
-        knockbackVec *= strength;
+
         rb.velocity = knockbackVec;
         GetComponent<PlayerHealth>().DealDamage(damage);
-        AudioSource.PlayClipAtPoint(hitSound, transform.position, 0.25f);
+        //AudioSource.PlayClipAtPoint(hitSound, transform.position, 0.25f);
+        GetComponent<Animator>().Play("Crushed");
+        OnBlockCancel(true);
+    }
+
+    public bool GettingCrushed()
+    {
+        return (GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).IsName("Crushed") && GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).normalizedTime < 1);
     }
 
     public void CutsceneBeginStopPlayer()

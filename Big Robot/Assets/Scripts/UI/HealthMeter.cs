@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public class HealthMeter : MonoBehaviour
 {
-    [SerializeField] PlayerHealth healthSystem;
+    [SerializeField] RobotBehavior healthSystem;
     void Update()
     {
         GetComponent<Image>().fillAmount = ((float)healthSystem.health / healthSystem.maxHealth);

@@ -85,6 +85,10 @@ public class DebugManager : MonoBehaviour
 			ImGui.Begin("Debug Options");
             if (player != null)
             {
+                if (ImGui.Button("Kill Robot"))
+                {
+                    FindAnyObjectByType<RobotBehavior>().health = 0;
+                }
                 if (ImGui.CollapsingHeader("Player Settings"))
                 {
                     ImGui.Checkbox("Invincibility", ref player.GetComponent<PlayerHealth>().infiniteHealth);
